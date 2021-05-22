@@ -1,0 +1,98 @@
+library(plotly)
+
+# -----------------------------------------------------------------------------
+count_graphic <-
+    function(df, baseline, s1, s2, type = "Infections") {
+        fig <-
+            plot_ly(
+                df,
+                x = ~Date,
+                y = s1,
+                name = "Scenario 1",
+                type = "scatter",
+                mode = "lines"
+            ) %>%
+            add_trace(y = s2, name = "Scenario 2") %>%
+            add_trace(y = baseline, name = "Baseline") %>%
+            config(displayModeBar = F) %>%
+            layout(
+                yaxis = list(title = type),
+                title = list(
+                    text = paste("Estimated", type, "by Scenario"),
+                    y = .975
+                )
+            )
+        fig
+    }
+
+# -----------------------------------------------------------------------------
+proportion_graphic <-
+    function(df, baseline, s1, s2,
+             title = "Proportion of Remaining Susceptible") {
+        fig <-
+            plot_ly(
+                df,
+                x = ~Date,
+                y = s1,
+                name = "Scenario 1",
+                type = "scatter",
+                mode = "lines"
+            ) %>%
+            add_trace(y = s2, name = "Scenario 2") %>%
+            add_trace(y = baseline, name = "Baseline") %>%
+            config(displayModeBar = F) %>%
+            layout(
+                yaxis = list(title = title),
+                title = list(
+                    text = paste(title, "by Scenario"),
+                    y = .975
+                )
+            )
+        fig
+    }
+
+# -----------------------------------------------------------------------------
+bar_graph <- function(m_ci, s1_ci, s2_ci, type = "Infections") {
+    fig <- plot_ly(
+        x = c("Baseline", "Scenario 1", "Scenario 2"),
+        y = c(m_ci, s1_ci, s2_ci),
+        name = "Comparing Model Output",
+        type = "bar"
+    ) %>%
+        config(displayModeBar = F) %>%
+        layout(
+            yaxis = list(title = paste("Total", type)),
+            title = list(text = "Comparing Model Outputs", y = .975)
+        )
+    fig
+}
+
+# -----------------------------------------------------------------------------
+reduction_graphic <- function(analysis_df, y, z) {
+    xx <- list(title = "Start of Shock")
+    y1 <- analysis_df[[y]]
+    z1 <- analysis_df[[z]]
+    if (y == "cases_reduction") {
+        yx <- list(title = "Change in Total Cases")
+    } else if (y == "peak_reduction_cases") {
+        yx <- list(title = "Change in Peak Cases")
+    } else if (y == "infections_reduction") {
+        yx <- list(title = "Change in Total Infections")
+    } else if (y == "peak_reduction_infections") {
+        yx <- list(title = "Change in Peak Infections")
+    }
+    if (z == "susceptible") {
+        zx <- list(title = "Proportion Susceptible")
+    } else if (z == "si") {
+        zx <- list(title = "Susceptible * Infectious")
+    } else if (z == "beta") {
+        zx <- list(title = "Beta")
+    }
+    fig <- plot_ly(analysis_df,
+        x = ~day, y = y1, z = z1, type = "scatter3d", mode = "lines",
+        opacity = 1, line = list(width = 8, reverscale = FALSE)
+    ) %>%
+        layout(scene = list(xaxis = xx, yaxis = yx, zaxis = zx)) %>%
+        config(displayModeBar = F)
+    fig
+}
