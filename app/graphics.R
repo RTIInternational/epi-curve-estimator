@@ -1,8 +1,26 @@
 library(plotly)
 
+vline <- function(x = 0, color = "grey") {
+    list(
+        type = "line",
+        y0 = 0,
+        y1 = 1,
+        yref = "paper",
+        x0 = x,
+        x1 = x,
+        line = list(color = color, dash = "dot", width = 1)
+    )
+}
+
 # -----------------------------------------------------------------------------
 count_graphic <-
     function(df, baseline, s1, s2, type = "Infections") {
+        add_days <- sum(is.na(df$Day))
+        if (add_days > 0) {
+            shapes <- list(vline(max(df$Date) - add_days))
+        } else {
+            shapes <- list()
+        }
         fig <-
             plot_ly(
                 df,
@@ -10,25 +28,40 @@ count_graphic <-
                 y = s1,
                 name = "Scenario 1",
                 type = "scatter",
-                mode = "lines"
+                mode = "lines",
+                line = list(color = "#e41a1c")
             ) %>%
-            add_trace(y = s2, name = "Scenario 2") %>%
-            add_trace(y = baseline, name = "Baseline") %>%
+            add_trace(
+                y = s2, name = "Scenario 2",
+                line = list(color = "#4daf4a")
+            ) %>%
+            add_trace(
+                y = baseline, name = "Baseline",
+                line = list(color = "#000000")
+            ) %>%
             config(displayModeBar = F) %>%
             layout(
                 yaxis = list(title = type),
                 title = list(
                     text = paste("Estimated", type, "by Scenario"),
                     y = .975
-                )
+                ),
+                shapes = shapes
             )
         fig
     }
 
+
 # -----------------------------------------------------------------------------
 proportion_graphic <-
-    function(df, baseline, s1, s2,
-             title = "Proportion of Remaining Susceptible") {
+    function(df, baseline, s1, s2, title = "Proportion Susceptible") {
+        add_days <- sum(is.na(df$Day))
+        if (add_days > 0) {
+            shapes <- list(vline(max(df$Date) - add_days))
+        } else {
+            shapes <- list()
+        }
+
         fig <-
             plot_ly(
                 df,
@@ -36,17 +69,25 @@ proportion_graphic <-
                 y = s1,
                 name = "Scenario 1",
                 type = "scatter",
-                mode = "lines"
+                mode = "lines",
+                line = list(color = "#e41a1c")
             ) %>%
-            add_trace(y = s2, name = "Scenario 2") %>%
-            add_trace(y = baseline, name = "Baseline") %>%
+            add_trace(
+                y = s2, name = "Scenario 2",
+                line = list(color = "#4daf4a")
+            ) %>%
+            add_trace(
+                y = baseline, name = "Baseline",
+                line = list(color = "#000000")
+            ) %>%
             config(displayModeBar = F) %>%
             layout(
                 yaxis = list(title = title),
                 title = list(
                     text = paste(title, "by Scenario"),
                     y = .975
-                )
+                ),
+                shapes = shapes
             )
         fig
     }
@@ -69,7 +110,7 @@ bar_graph <- function(m_ci, s1_ci, s2_ci, type = "Infections") {
 
 # -----------------------------------------------------------------------------
 reduction_graphic <- function(analysis_df, y, z) {
-    xx <- list(title = "Start of Shock")
+    xx <- list(title = "Start of Modification")
     y1 <- analysis_df[[y]]
     z1 <- analysis_df[[z]]
     if (y == "cases_reduction") {

@@ -11,31 +11,71 @@ shinyServer(function(input, output, session) {
     cv
   })
   # ---------------------------------------------------------------------------
+  # ----- Download
+  # ---------------------------------------------------------------------------
+  output$downloadData <- downloadHandler(
+    filename = function() {
+      if (input$download_file == "baseline") {
+      }
+      paste0(input$county, "-", input$download_file, "-", Sys.Date(), '.csv')
+    },
+    content = function(con) {
+      if (input$download_file == "baseline") {
+        data = model_default()
+      } else if(input$download_file == "scenario1") {
+        data = scenario1_df()
+      } else {
+        data = scenario2_df()
+      }
+      write.csv(data, con)
+    }
+  )
+  output$downloadData2 <- downloadHandler(
+    filename = function() {
+      paste0(tolower(input$county), "-", input$download_file, "-", "meta_data", '.txt')
+    },
+    content = function(con) {
+      a <- c(paste0("County: ", input$county))
+      a <- c(a, paste0("Beta: ", ifelse(input$beta==1, "Beta Calculated From Epi Curve", input$beta)))
+      a <- c(a, paste0("Case Multiplier Value 1: ", input$cm_slider_start))
+      a <- c(a, paste0("Case Multiplier Value 2: ", input$cm_slider_end))
+      a <- c(a, paste0("Modification Intensity: ", input$modification_multiplier))
+      a <- c(a, paste0("Scenario 1 Modification Day: ", input$modification_day1))
+      a <- c(a, paste0("Scenario 1 Modification Length: ", input$modification_length1))
+      a <- c(a, paste0("Scenario 2 Modification Day: ", input$modification_day2))
+      a <- c(a, paste0("Scenario 2 Modification Length: ", input$modification_length2))
+      a <- c(a, paste0("Days Projected: ", input$add_days))
+      write.csv(c(1, 2, 3), "test.csv")
+      writeLines(a, con)
+    }
+  )
+
+  # ---------------------------------------------------------------------------
   # ----- Scenarios
   # ---------------------------------------------------------------------------
   model_default <- reactive({
-    run_scenario(cv(), 1, 1, 1)
+    run_scenario(cv(), 1, 1, 1, add_days = input$add_days)
   })
   scenario1_df <- reactive({
-    start <- input$shock_day1
-    length <- input$shock_length
-    sm <- input$shock_multiplier
-    run_scenario(cv(), start, length, shock_multiplier = sm)
+    start <- input$modification_day1
+    length <- input$modification_length
+    sm <- input$modification_multiplier
+    run_scenario(cv(), start, length, mod_multiplier = sm, add_days = input$add_days)
   })
   scenario2_df <- reactive({
-    start <- input$shock_day2
-    length <- input$shock_length
-    sm <- input$shock_multiplier
-    run_scenario(cv(), start, length, shock_multiplier = sm)
+    start <- input$modification_day2
+    length <- input$modification_length
+    sm <- input$modification_multiplier
+    run_scenario(cv(), start, length, mod_multiplier = sm, add_days = input$add_days)
   })
 
   # ---------------------------------------------------------------------------
   # ----- Analysis
   # ---------------------------------------------------------------------------
   analysis_df <- reactive({
-    length <- input$shock_length
+    length <- input$modification_length
     days <- 370 - length
-    sm <- input$shock_multiplier
+    sm <- input$modification_multiplier
     prepare_analysis_df(cv(), days, length, sm)
   })
 
@@ -48,7 +88,7 @@ shinyServer(function(input, output, session) {
     day <- which.max(a_df[[input$y_axis]])
     value <- round(max(a_df[[input$y_axis]]), 2)
     value <- format(value, nsmall = 1, big.mark = ",")
-    s1 <- paste("Optimal day to start this shock: Day ", day)
+    s1 <- paste("Optimal day to start the modification: Day ", day)
     s2 <- paste("Reducing selected metric by a value of:", value)
     HTML(paste(s1, s2, sep = "<br/>"))
   })

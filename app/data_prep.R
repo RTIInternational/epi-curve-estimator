@@ -77,16 +77,19 @@ calc_beta <-
     # ----- Smooth out the infections (too many days of counties reported 0)
     m1 <- smooth.spline(df$infections, cv = TRUE)
 
-    df$sm_infections <- m1$y
+    df$smoothed_infections <- m1$y
 
     # ----- Calculate the growth rate, re, and beta
     df <- df %>%
-      mutate(sm_infections = ifelse(sm_infections <= 0, 0, sm_infections)) %>%
-      mutate(lagInfections = lag(sm_infections, 7, 1)) %>%
-      mutate(growth_rate = ((sm_infections / lagInfections)**(1 / 7)) - 1)
+      mutate(
+        smoothed_infections =
+          ifelse(smoothed_infections <= 0, 0, smoothed_infections)
+      ) %>%
+      mutate(lag_infections = lag(smoothed_infections, 7, 1)) %>%
+      mutate(growth_rate = ((smoothed_infections / lag_infections)**(1 / 7)) - 1)
     df <- df %>%
       mutate(growth_rate = ifelse(is.na(growth_rate), 0, growth_rate)) %>%
-      mutate(cum_infections = cumsum(sm_infections)) %>%
+      mutate(cum_infections = cumsum(smoothed_infections)) %>%
       mutate(re = (1 + growth_rate * tlat) * (1 + growth_rate * tinf)) %>%
       mutate(beta = (re / tinf) / (1 - cum_infections / pop))
 
@@ -101,7 +104,7 @@ calc_beta <-
     for (cm in cms) {
       seir_values <- seir(days, pop, cm, alpha, gamma, df$beta)
       p <- seir_values[["predicted"]]
-      error <- mean((df$sm_infections - p)**2)
+      error <- mean((df$smoothed_infections - p)**2)
       if (error < min_error) {
         min_error <- error
         preds <- p

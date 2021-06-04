@@ -5,9 +5,9 @@ source("data_prep.R")
 
 run_scenario <-
   function(cv,
-           shock_day = 10,
-           shock_length = 10,
-           shock_multiplier = 2, add_days = 0) {
+           mod_day = 10,
+           mod_length = 10,
+           mod_multiplier = 2, add_days = 0) {
     scenario_df <- cv$data
     cm_array <- cv$cm_array
     if (add_days > 0) {
@@ -21,8 +21,8 @@ run_scenario <-
     }
 
     beta <- scenario_df$beta
-    beta[shock_day:(shock_day + shock_length)] <-
-      beta[shock_day:(shock_day + shock_length)] * shock_multiplier
+    beta[mod_day:(mod_day + mod_length)] <-
+      beta[mod_day:(mod_day + mod_length)] * mod_multiplier
 
     # Rebind
     beta[which(beta > 1)] <- 1
