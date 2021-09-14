@@ -1,7 +1,34 @@
 shinyServer(function(input, output, session) {
   cv <- reactive({
+    # Use Prepared Data
+    if (is.null(input$file1$datapath)) {
+      data <- county_data
+      population <- county_pop[county_pop$County == input$county, ]$Population
+      region <- input$county
+      # Use uploaded data
+    } else {
+      data <- read.csv(input$file1$datapath)
+      # --- Rename columns, update the date column, fix the county name
+      data <- data %>%
+        rename(CumTot = Total.Confirmed.Cases, Cases = New.Cases) %>%
+        mutate(Date = mdy(data$Date))
+      # --- Create an "Epidemic Day" column, order the df, and add population
+      d1 <- min(county_data$Date)
+      data <- data %>%
+        mutate(Day = as.integer(data$Date - d1 + 1), .after = "Date") %>%
+        arrange(data$Date)
+      # Fix names
+      colnames(data) <-
+        c("Region", "Date", "Day", "cum_cases", "cases")
+      population <- input$population
+      region <- data$Region[1]
+      print(data)
+    }
+
     cv <- calc_beta(
-      county = input$county,
+      cases_data = data,
+      population = population,
+      region = region,
       cm_end = input$cm_slider_end,
       cm_start = input$cm_slider_start
     )
@@ -13,30 +40,40 @@ shinyServer(function(input, output, session) {
   # ---------------------------------------------------------------------------
   # ----- Download
   # ---------------------------------------------------------------------------
-  output$downloadData <- downloadHandler(
+  output$download_template <- downloadHandler(
+    filename = function() {
+      "template.csv"
+    },
+    content = function(con) {
+      data <- tibble(read.csv("data/covid19_cases_template.csv", header = T))
+      write.csv(data, con, row.names = FALSE)
+    }
+  )
+
+  output$download_data <- downloadHandler(
     filename = function() {
       if (input$download_file == "baseline") {
       }
-      paste0(input$county, "-", input$download_file, "-", Sys.Date(), '.csv')
+      paste0(input$county, "-", input$download_file, "-", Sys.Date(), ".csv")
     },
     content = function(con) {
       if (input$download_file == "baseline") {
-        data = model_default()
-      } else if(input$download_file == "scenario1") {
-        data = scenario1_df()
+        data <- model_default()
+      } else if (input$download_file == "scenario1") {
+        data <- scenario1_df()
       } else {
-        data = scenario2_df()
+        data <- scenario2_df()
       }
       write.csv(data, con)
     }
   )
-  output$downloadData2 <- downloadHandler(
+  output$download_parameters <- downloadHandler(
     filename = function() {
-      paste0(tolower(input$county), "-", input$download_file, "-", "meta_data", '.txt')
+      paste0(tolower(input$county), "-", input$download_file, "-", Sys.Date(), "-", "meta_data", ".txt")
     },
     content = function(con) {
       a <- c(paste0("County: ", input$county))
-      a <- c(a, paste0("Beta: ", ifelse(input$beta==1, "Beta Calculated From Epi Curve", input$beta)))
+      a <- c(a, paste0("Beta: ", ifelse(input$beta == 1, "Beta Calculated From Epi Curve", input$beta)))
       a <- c(a, paste0("Case Multiplier Value 1: ", input$cm_slider_start))
       a <- c(a, paste0("Case Multiplier Value 2: ", input$cm_slider_end))
       a <- c(a, paste0("Modification Intensity: ", input$modification_multiplier))
@@ -84,13 +121,20 @@ shinyServer(function(input, output, session) {
   })
 
   output$reduction_text <- renderUI({
+    print(input$tabs1)
     a_df <- analysis_df()
     day <- which.max(a_df[[input$y_axis]])
     value <- round(max(a_df[[input$y_axis]]), 2)
     value <- format(value, nsmall = 1, big.mark = ",")
-    s1 <- paste("Optimal day to start the modification: Day ", day)
+
+
+    s1 <- paste("Optimal<sup>**</sup> day to start the modification:", day)
     s2 <- paste("Reducing selected metric by a value of:", value)
-    HTML(paste(s1, s2, sep = "<br/>"))
+    s3 <- ""
+    s4 <- "<sup>*</sup> Relative to baseline"
+    s5 <-
+      "<sup>**</sup> Optimal given the Main Outcome of Interest selected above"
+    HTML(paste(s1, s2, s3, s4, s5, "<br/>", "<br/>", sep = "<br/>"))
   })
 
   # ---------------------------------------------------------------------------

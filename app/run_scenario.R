@@ -16,13 +16,13 @@ run_scenario <-
 
       beta <- rep(scenario_df$beta[dim(scenario_df)[1]], add_days)
       scenario_df <- scenario_df %>%
-        add_row(County = rep("Wake", add_days), Date = days, beta = beta)
+        add_row(Region = rep(cv$Region[1], add_days), Date = days, beta = beta)
       cm_array <- c(cm_array, rep(cm_array[length(cm_array)], add_days))
     }
-
     beta <- scenario_df$beta
-    beta[mod_day:(mod_day + mod_length)] <-
-      beta[mod_day:(mod_day + mod_length)] * mod_multiplier
+    end_index <- min(length(beta), mod_day + mod_length)
+    beta[mod_day:end_index] <-
+      beta[mod_day:end_index] * mod_multiplier
 
     # Rebind
     beta[which(beta > 1)] <- 1

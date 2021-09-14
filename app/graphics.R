@@ -110,24 +110,24 @@ bar_graph <- function(m_ci, s1_ci, s2_ci, type = "Infections") {
 
 # -----------------------------------------------------------------------------
 reduction_graphic <- function(analysis_df, y, z) {
-    xx <- list(title = "Start of Modification")
+    xx <- list(title = "Start Day of Modification (x)")
     y1 <- analysis_df[[y]]
     z1 <- analysis_df[[z]]
     if (y == "cases_reduction") {
-        yx <- list(title = "Change in Total Cases")
+        yx <- list(title = "Change in Cases<sup>*</sup> (y)")
     } else if (y == "peak_reduction_cases") {
-        yx <- list(title = "Change in Peak Cases")
+        yx <- list(title = "Change in Peak Cases<sup>*</sup> (y)")
     } else if (y == "infections_reduction") {
-        yx <- list(title = "Change in Total Infections")
+        yx <- list(title = "Change in Infections<sup>*</sup> (y)")
     } else if (y == "peak_reduction_infections") {
-        yx <- list(title = "Change in Peak Infections")
+        yx <- list(title = "Change in Peak Infections<sup>*</sup> (y)")
     }
     if (z == "susceptible") {
-        zx <- list(title = "Proportion Susceptible")
+        zx <- list(title = "Proportion Susceptible (z)")
     } else if (z == "si") {
-        zx <- list(title = "Susceptible * Infectious")
+        zx <- list(title = "Susceptible * Infectious (z)")
     } else if (z == "beta") {
-        zx <- list(title = "Beta")
+        zx <- list(title = "Beta (z)")
     }
     fig <- plot_ly(analysis_df,
         x = ~day, y = y1, z = z1, type = "scatter3d", mode = "lines",

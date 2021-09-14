@@ -24,27 +24,28 @@ county_data <- county_data %>%
   select(-c(CumTot))
 # Fix names
 colnames(county_data) <-
-  c("County", "Date", "Day", "cum_cases", "cases")
+  c("Region", "Date", "Day", "cum_cases", "cases")
 
 # --- Unique County Names
-tt2 <- unique(county_data$County)
+tt2 <- unique(county_data$Region)
 
 
 # ----- Our Main Function
 calc_beta <-
-  function(county = "Wake",
+  function(cases_data,
+           population,
+           region = "Wake",
            cm_start = 10,
            cm_end = 4,
            tlat = 5,
            tinf = 6) {
     values <- list()
-    # ----- Grab the County: Drop days before first case
-    df <- county_data %>%
-      filter(County == county) %>%
+    # ----- Grab the region: Drop days before first case
+    df <- cases_data %>%
+      filter(Region == region) %>%
       filter(cum_cases > 0)
-    pop <- county_pop[county_pop$County == county, ]$Population
-    values["Population"] <- pop
-    values["County"] <- county
+    values["Population"] <- population
+    values["Region"] <- region
 
     # ----- Parameters
     alpha <- 1 / tlat
@@ -65,8 +66,11 @@ calc_beta <-
       temp_array <- seq(cm_start, cm_end, step)
     }
     cm_array <- c(cm_array, temp_array)
-    cm_array <- c(cm_array, rep(cm_end, max(df$Day) - length(cm_array)))
-
+    if (max(df$Day) - length(cm_array) > 0) {
+      cm_array <- c(cm_array, rep(cm_end, max(df$Day) - length(cm_array)))
+    } else {
+      cm_array <- cm_array[1:max(df$Day)]
+    }
     cm_array <- cm_array[min(df$Day):max(df$Day)]
 
     values[["cm_array"]] <- cm_array
@@ -86,12 +90,12 @@ calc_beta <-
           ifelse(smoothed_infections <= 0, 0, smoothed_infections)
       ) %>%
       mutate(lag_infections = lag(smoothed_infections, 7, 1)) %>%
-      mutate(growth_rate = ((smoothed_infections / lag_infections)**(1 / 7)) - 1)
+      mutate(growth_r = ((smoothed_infections / lag_infections)**(1 / 7)) - 1)
     df <- df %>%
-      mutate(growth_rate = ifelse(is.na(growth_rate), 0, growth_rate)) %>%
+      mutate(growth_r = ifelse(is.na(growth_r), 0, growth_r)) %>%
       mutate(cum_infections = cumsum(smoothed_infections)) %>%
-      mutate(re = (1 + growth_rate * tlat) * (1 + growth_rate * tinf)) %>%
-      mutate(beta = (re / tinf) / (1 - cum_infections / pop))
+      mutate(re = (1 + growth_r * tlat) * (1 + growth_r * tinf)) %>%
+      mutate(beta = (re / tinf) / (1 - cum_infections / population))
 
     # --- Bound beta between 0 and 1
     df[which(df$beta > 1), "beta"] <- 1
@@ -102,7 +106,7 @@ calc_beta <-
     cms <- c(seq(.1, 10, .1), seq(10, 200, 2.5))
 
     for (cm in cms) {
-      seir_values <- seir(days, pop, cm, alpha, gamma, df$beta)
+      seir_values <- seir(days, population, cm, alpha, gamma, df$beta)
       p <- seir_values[["predicted"]]
       error <- mean((df$smoothed_infections - p)**2)
       if (error < min_error) {
@@ -111,7 +115,6 @@ calc_beta <-
         selected_cm <- cm
       }
     }
-
     df$pred_infections <- preds
     df$cum_pred_infections <- cumsum(preds)
     df$pred_cases <- df$pred_infections / cm_array
@@ -123,7 +126,7 @@ calc_beta <-
   }
 
 
-seir <- function(days, pop, cm, alpha, gamma, beta_array) {
+seir <- function(days, population, cm, alpha, gamma, beta_array) {
   # ----- Set Initial Compartments
   s <- rep(1, days + 1)
   e <- rep(0, days + 1)
@@ -131,21 +134,21 @@ seir <- function(days, pop, cm, alpha, gamma, beta_array) {
   p <- rep(0, 1)
 
   # --- Set original "infections" as the case multiplier
-  e[1] <- cm / pop
-  i[1] <- cm / pop
+  e[1] <- cm / population
+  i[1] <- cm / population
 
   # ----- Run SEIR
   for (j in 1:days) {
     s[j + 1] <- s[j] - beta_array[j] * s[j] * i[j]
     e[j + 1] <- e[j] + beta_array[j] * s[j] * i[j] - alpha * e[j]
     i[j + 1] <- i[j] + alpha * e[j] - gamma * i[j]
-    p <- c(p, alpha * e[j] * pop)
+    p <- c(p, alpha * e[j] * population)
   }
   return_list <- list()
   return_list[["predicted"]] <- p
   return_list[["susceptible"]] <- s
   return_list[["infectious"]] <- i
-  return_list[["infected"]] <- i * pop
+  return_list[["infected"]] <- i * population
   return(return_list)
 }
 
